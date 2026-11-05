@@ -1,0 +1,87 @@
+text,intent
+"Soovin broneerida väljaku homme, 5. novembril kell 15:30.",booking
+Tahaksin rannavõrkpalli platsi kinni panna tänaseks.,booking
+Kas saaks ühe platsi hommikuks broneerida?,booking
+Tahan broneerida kahte väljakut.,booking
+Sooviks mängida rannavõrkpalli reedel kell 18.,booking
+Broneeriksin meeleldi rannatennise väljaku.,booking
+Kas on võimalik tänaseks aega broneerida?,booking
+Soovin tenniseväljakut kaheks tunniks.,booking
+Palun pange mulle kirja üks väljak laupäeva õhtuks.,booking
+Vajame platsi pühapäeval kell 12.,booking
+Palun tühistage minu homne broneering.,cancel
+"Ei saa kahjuks tulla, soovin aja tühistada.",cancel
+Soovin oma broneeringust loobuda.,cancel
+"Meil jäi kahjuks mäng ära, palun tühistada.",cancel
+Kas ma saan oma tänase aja tühistada?,cancel
+Palun annulleerida minu broneering.,cancel
+"Vabandan, aga ma ei jõua täna, palun tühistage.",cancel
+Sooviksime broneeringu tagasi võtta.,cancel
+Tühistan oma pühapäevase mängu.,cancel
+Palun kustutage minu homne aeg.,cancel
+Mis on ühe tunni hind?,admin
+Kui palju maksab väljaku rent?,admin
+Mis teie hinnakiri on?,admin
+Palju maksab tund aega tennist?,admin
+Kas teil on soodustusi õpilastele?,admin
+Mis on rannavõrkpalli hind?,admin
+Kus te täpselt asute?,admin
+Kuidas teieni sõita saab?,admin
+Mis teie aadress on?,admin
+Kas te asute kesklinnas?,admin
+Kus see hall asub?,admin
+Kas kohapeal on olemas pesemisvõimalus ja saun?,admin
+Kas parkimine on tasuta?,admin
+Kas väljakul on valgustus?,admin
+Kas te annate palle rendile?,admin
+Kas reketit saab kohapealt laenutada?,admin
+Kas teil riietusruumid ja dušš on olemas?,admin
+"Kaotasin eile oma telefoni väljakule, kas keegi leidis?",admin
+Kas pakute koostööd ettevõtetele ja sponsorlust?,admin
+Kuidas ma saan teie juurde tööle tulla?,admin
+"Tahaksin osta kinkekaarti, kas see on võimalik?",admin
+Mu sõber unustas koti riietusruumi.,admin
+Sooviksime korraldada suurema firmapeo teie juures.,admin
+kas teie juures saab sünnipäeva pidada,admin
+"Kas teil kohvikut on, kust süüa osta?",admin
+"Soovin broneerida väljaku homme, 5. novembril kell 15:30.",booking
+Tahaksin rannavõrkpalli platsi kinni panna tänaseks.,booking
+Palun broneerige mulle tenniseväljak laupäevaks.,booking
+Soovin aega kirja panna padeli mängimiseks.,booking
+Kas saaks ühe platsi hommikuks broneerida?,booking
+Tahan broneerida kahte väljakut.,booking
+Vajame väljakut kaheks tunniks.,booking
+Sooviks mängida rannavõrkpalli reedel kell 18.,booking
+Broneeriksin meeleldi rannatennise väljaku.,booking
+Kas on võimalik tänaseks aega broneerida?,booking
+"Palun andke teada, kas see aeg on vaba ja kuidas toimub tasumine.",admin
+Kas te annate palle rendile?,admin
+Kus te täpselt asute?,admin
+Mis on ühe tunni hind?,admin
+Kas kohapeal on olemas pesemisvõimalus ja saun?,admin
+Mis kellani te avatud olete?,admin
+Kas parkimine on tasuta?,admin
+Kas väljakul on valgustus?,admin
+Kas reketit saab kohapealt laenutada?,admin
+Kas reketit saab kohapealt laenutada?,admin
+Palun tühistage minu homne broneering.,cancel
+"Ei saa kahjuks tulla, soovin aja tühistada.",cancel
+Tühistage palun minu aeg reedeks.,cancel
+Soovin oma broneeringust loobuda.,cancel
+"Meil jäi kahjuks mäng ära, palun tühistada.",cancel
+Kas ma saan oma tänase aja tühistada?,cancel
+Palun annulleerida minu broneering.,cancel
+"Vabandan, aga ma ei jõua täna, palun tühistage.",cancel
+Sooviksime broneeringu tagasi võtta.,cancel
+Tühistan oma pühapäevase mängu.,cancel
+Tere!,ignore
+"Ette tänades,",ignore
+Ilusat päeva jätku!,ignore
+"Loodan, et teil läheb hästi",ignore
+Ootan teie tagasisidet,ignore
+Lugupidamisega,ignore
+Tsau!,ignore
+Jou,ignore
+Hei,ignore
+Ahoi,ignore
+Parimat,ignore
