@@ -1,5 +1,5 @@
 # Environment variables (passwords/secrets)
-.env
+smartCourt_service/.env
 
 # Python cache
 __pycache__/
@@ -9,5 +9,9 @@ __pycache__/
 .venv/
 venv/
 
-# Local SQLite database
 *.db
+
+node_modules/
+smartcourt-web/node_modules/
+dist/
+

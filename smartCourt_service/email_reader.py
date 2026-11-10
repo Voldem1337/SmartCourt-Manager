@@ -51,6 +51,13 @@ def fetch_unread_emails() -> list[dict]:
 
         for e_id in emails_ids:
             # By id downloading email
+            raw_subj = msg.get("Subject")
+            if raw_subj:
+                subject, encoding = decode_header(raw_subj)[0]
+                if isinstance(subject, bytes):
+                    subject = subject.decode(encoding if encoding else "utf-8", errors="ignore")
+            else:
+                subject = "Ilma teemata"
             res, msg_data = mail.fetch(e_id, "(RFC822)")
             for response_part in msg_data:
                 if isinstance(response_part, tuple):

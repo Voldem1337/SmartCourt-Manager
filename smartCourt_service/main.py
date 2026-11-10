@@ -4,7 +4,9 @@ from datetime import datetime, timedelta
 from contextlib import asynccontextmanager
 from pydantic import BaseModel
 from fastapi import FastAPI, Depends, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 from apscheduler.schedulers.background import BackgroundScheduler
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -23,6 +25,24 @@ from nlp_model.nlp_parser import (
 from email_reader import fetch_unread_emails, send_email, forward_to_admin
 
 models.Base.metadata.create_all(bind=engine)
+
+
+def ensure_extra_columns():
+    """Safely adds phone, bank_account, and comment columns to SQLite if they don't exist yet."""
+    with engine.connect() as conn:
+        for stmt in [
+            "ALTER TABLE users ADD COLUMN phone VARCHAR DEFAULT ''",
+            "ALTER TABLE users ADD COLUMN bank_account VARCHAR DEFAULT ''",
+            "ALTER TABLE bookings ADD COLUMN comment VARCHAR DEFAULT ''",
+        ]:
+            try:
+                conn.execute(text(stmt))
+                conn.commit()
+            except Exception:
+                pass
+
+
+ensure_extra_columns()
 
 
 def background_email_task():
@@ -57,6 +77,15 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="CourtFlow AI API", lifespan=lifespan)
+
+# Allow front-end Vite to access our API
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Estonian names for sports to display nicely in confirmation emails
 SPORT_NAMES_ET = {
@@ -131,6 +160,19 @@ class EmailSimulationRequest(BaseModel):
     send_real_email: bool = False
 
 
+class ManualBookingRequest(BaseModel):
+    court_id: int
+    client_email: str
+    client_phone: str = ""
+    client_bank_account: str = ""
+    start_time: datetime
+    end_time: datetime
+    sport_type: str = "beach_volleyball"
+    comment: str = ""
+    repeat_weekly: bool = False
+    repeat_until: str | None = None  # YYYY-MM-DD
+    send_confirmation_email: bool = True  # Send to the user email
+
 def get_db():
     db = SessionLocal()
     try:
@@ -155,6 +197,18 @@ def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
 @app.post("/courts/", response_model=schemas.CourtResponse)
 def create_court(court: schemas.CourtCreate, db: Session = Depends(get_db)):
     return crud.create_court(db, court=court)
+
+
+@app.get("/courts/", response_model=list[schemas.CourtResponse])
+def read_courts(db: Session = Depends(get_db)):
+    """Returns all courts in the database."""
+    courts = db.query(models.Court).all()
+    if not courts:
+        for name in ["Parim plats", "Nocco", "Red Bull", "A. Le Coq"]:
+            db.add(models.Court(name=name))
+        db.commit()
+        courts = db.query(models.Court).all()
+    return courts
 
 
 def process_single_email(
@@ -245,7 +299,7 @@ def process_single_email(
                     <p>Rõõm on teatada, et teie väljaku broneering on edukalt kinnitatud! Liiv on juba soe ja ootame teid mängima.</p>
 
                     <div style="background-color: #f8fafc; border-left: 4px solid #2ecc71; padding: 16px 20px; border-radius: 8px; margin: 20px 0;">
-                        <h3 style="margin-top: 0; margin-bottom: 10px; color: #1e3c72; font-size: 16px;">Broneeringu detailid (#{booking_id}):</h3>
+                        <h3 style="margin-top: 0; margin-bottom: 10px; color: #1e3c72; font-size: 16px;">Broneeringu detailid:</h3>
                         <p style="margin: 5px 0;">🏟️ <b>Väljak:</b> {available_court.name}</p>
                         <p style="margin: 5px 0;">🏐 <b>Ala:</b> {sport_et}</p>
                         <p style="margin: 5px 0;">📅 <b>Kuupäev:</b> {date_str}</p>
@@ -277,29 +331,26 @@ def process_single_email(
                     content_html=content
                 )
 
-
             else:
-
                 # All courts are busy at the requested time
-
                 date_str = start_dt.strftime("%d.%m.%Y")
                 time_str = f"{start_dt.strftime('%H:%M')} - {end_dt.strftime('%H:%M')}"
                 reply_subject = "Väljakud on hõivatud - SmartCourt"
                 content = f"""
-                                <p>Täname broneeringusoovi eest! Kahjuks on kõik meie väljakud kuupäeval <strong>{date_str}</strong> ajavahemikus <strong>{time_str}</strong> juba hõivatud.</p>
-                                <div style="background-color: #fdedec; border-left: 4px solid #e74c3c; padding: 15px; border-radius: 6px; margin: 18px 0;">
-                                    Palun valige mõni muu kellaaeg või kuupäev ning vastake julgelt sellele kirjale – leiame teile kindlasti sobiva aja!
-                                </div>
-                            """
+                    <p>Täname broneeringusoovi eest! Kahjuks on kõik meie väljakud kuupäeval <strong>{date_str}</strong> ajavahemikus <strong>{time_str}</strong> juba hõivatud.</p>
+                    <div style="background-color: #fdedec; border-left: 4px solid #e74c3c; padding: 15px; border-radius: 6px; margin: 18px 0;">
+                        Palun valige mõni muu kellaaeg või kuupäev ning vastake julgelt sellele kirjale – leiame teile kindlasti sobiva aja!
+                    </div>
+                """
                 action_taken = "no_courts_available"
-                # PATCH 3: If the yard is busy, but the customer asked a question - we still send it to the admin!
+
                 if "admin" in intents:
                     content += """
-                                <div style="background-color: #fff8e6; border-left: 4px solid #f39c12; padding: 12px 16px; border-radius: 6px; margin-top: 15px; color: #b9770e;">
-                                    <i>💡 Panime tähele, et teie kirjas oli ka lisaküsimus. 
-                                    Edastasime selle meie administraatorile, kes vastab teile peagi!</i>
-                                </div>
-                                """
+                    <div style="background-color: #fff8e6; border-left: 4px solid #f39c12; padding: 12px 16px; border-radius: 6px; margin-top: 15px; color: #b9770e;">
+                        <i>💡 Panime tähele, et teie kirjas oli ka lisaküsimus. 
+                        Edastasime selle meie administraatorile, kes vastab teile peagi!</i>
+                    </div>
+                    """
                     if send_real_email:
                         forward_to_admin(
                             sender_email,
@@ -307,6 +358,7 @@ def process_single_email(
                             note=f"No courts available for {date_str} {time_str}, but client also asked a question!"
                         )
                     action_taken += "_and_forwarded_question"
+
                 reply_body = build_html_email(
                     title="Soovitud aeg on hõivatud ⏳",
                     greeting="Tere, hea spordisõber!",
@@ -316,7 +368,6 @@ def process_single_email(
         # 1c. Missing either date or time (Slot Filling)
         else:
             if "admin" in intents:
-                # If they forgot the time AND asked a custom question, let the human admin handle both
                 if send_real_email:
                     forward_to_admin(
                         sender_email,
@@ -439,7 +490,7 @@ def check_and_process_inbox(db: Session = Depends(get_db)):
 @app.post("/simulate-email/")
 def simulate_email_processing(req: EmailSimulationRequest, db: Session = Depends(get_db)):
     """Test endpoint to simulate incoming emails in Swagger UI without waiting for IMAP."""
-    full_text = f"{req.subject}. {req.body}"
+    full_text = f"{req.subject}. {item_body if (item_body := req.body) else ''}"
     return process_single_email(full_text, req.sender_email, db, send_real_email=req.send_real_email)
 
 
@@ -447,3 +498,172 @@ def simulate_email_processing(req: EmailSimulationRequest, db: Session = Depends
 def read_bookings(db: Session = Depends(get_db)):
     """Returns a list of all bookings in the database."""
     return crud.get_all_bookings(db)
+
+
+@app.get("/bookings/details/")
+def read_bookings_with_details(db: Session = Depends(get_db)):
+    """Returns all bookings enriched with user email, phone, bank account, and comment."""
+    rows = db.execute(
+        text("""
+            SELECT 
+                b.id, b.court_id, b.user_id, b.start_time, b.end_time, b.sport_type,
+                COALESCE(b.comment, '') as comment,
+                COALESCE(u.email, '') as user_email,
+                COALESCE(u.phone, '') as user_phone,
+                COALESCE(u.bank_account, '') as user_bank_account
+            FROM bookings b
+            LEFT JOIN users u ON b.user_id = u.id
+            ORDER BY b.start_time ASC
+        """)
+    ).mappings().all()
+    return [dict(r) for r in rows]
+
+
+@app.post("/bookings/manual/")
+def create_manual_booking(req: ManualBookingRequest, db: Session = Depends(get_db)):
+    """Creates a single or weekly recurring booking, sends HTML confirmation to client, and forwards questions to admin."""
+    start_naive = req.start_time.replace(tzinfo=None)
+    end_naive = req.end_time.replace(tzinfo=None)
+
+    # Block booking in the past
+    if start_naive < datetime.now():
+        raise HTTPException(
+            status_code=400,
+            detail="Valitud kellaaeg on juba möödas! Palun vali tulevane aeg."
+        )
+
+    clean_client_email = req.client_email.strip()
+    user = crud.get_or_create_user(db, clean_client_email)
+
+    # Update user's phone and bank_account if provided
+    if req.client_phone or req.client_bank_account:
+        db.execute(
+            text("""
+                UPDATE users 
+                SET phone = CASE WHEN :phone != '' THEN :phone ELSE COALESCE(phone, '') END,
+                    bank_account = CASE WHEN :bank != '' THEN :bank ELSE COALESCE(bank_account, '') END
+                WHERE id = :uid
+            """),
+            {"phone": req.client_phone.strip(), "bank": req.client_bank_account.strip(), "uid": user.id}
+        )
+        db.commit()
+
+    # Build list of dates (single date or weekly recurring up to repeat_until)
+    intervals = [(start_naive, end_naive)]
+    if req.repeat_weekly and req.repeat_until:
+        try:
+            until_date = datetime.strptime(req.repeat_until, "%Y-%m-%d").date()
+            curr_start = start_naive + timedelta(days=7)
+            curr_end = end_naive + timedelta(days=7)
+            while curr_start.date() <= until_date:
+                intervals.append((curr_start, curr_end))
+                curr_start += timedelta(days=7)
+                curr_end += timedelta(days=7)
+        except ValueError:
+            pass
+
+    created_ids = []
+    skipped_dates = []
+    created_dates_str = []
+
+    for s_dt, e_dt in intervals:
+        overlapping = db.query(models.Booking).filter(
+            models.Booking.court_id == req.court_id,
+            models.Booking.start_time < e_dt,
+            models.Booking.end_time > s_dt
+        ).first()
+
+        if overlapping:
+            skipped_dates.append(s_dt.strftime("%d.%m.%Y"))
+            continue
+
+        booking_in = schemas.BookingCreate(
+            court_id=req.court_id,
+            start_time=s_dt,
+            end_time=e_dt,
+            sport_type=models.SportType(req.sport_type)
+        )
+        new_b = crud.create_booking(db, booking=booking_in, user_id=user.id)
+        if req.comment and req.comment.strip():
+            db.execute(
+                text("UPDATE bookings SET comment = :c WHERE id = :bid"),
+                {"c": req.comment.strip(), "bid": new_b.id}
+            )
+            db.commit()
+        created_ids.append(new_b.id)
+        created_dates_str.append(s_dt.strftime("%d.%m.%Y"))
+
+    if not created_ids:
+        raise HTTPException(
+            status_code=409,
+            detail="See väljak on valitud kellaajal juba broneeritud!"
+        )
+
+    court_obj = db.query(models.Court).filter(models.Court.id == req.court_id).first()
+    court_name = court_obj.name if court_obj else f"Väljak #{req.court_id}"
+    sport_et = SPORT_NAMES_ET.get(req.sport_type, "Rannavõrkpall")
+
+    date_str = start_naive.strftime("%d.%m.%Y")
+    time_str = f"{start_naive.strftime('%H:%M')} - {end_naive.strftime('%H:%M')}"
+    has_question = bool(req.comment and req.comment.strip())
+
+    if req.send_confirmation_email:
+        reply_subject = f"Broneeringu kinnitus: {date_str} kell {time_str} - SmartCourt"
+
+        dates_display = (
+            f"{date_str} (Püsiaeg: {', '.join(created_dates_str)})"
+            if len(created_dates_str) > 1
+            else date_str
+        )
+
+        content = f"""
+            <p>Rõõm on teatada, et teie väljaku broneering on edukalt kinnitatud! Liiv on juba soe ja ootame teid mängima.</p>
+
+            <div style="background-color: #f8fafc; border-left: 4px solid #2ecc71; padding: 16px 20px; border-radius: 8px; margin: 20px 0;">
+                <h3 style="margin-top: 0; margin-bottom: 10px; color: #1e3c72; font-size: 16px;">Broneeringu detailid:</h3>
+                <p style="margin: 5px 0;">🏟️ <b>Väljak:</b> {court_name}</p>
+                <p style="margin: 5px 0;">🏐 <b>Ala:</b> {sport_et}</p>
+                <p style="margin: 5px 0;">📅 <b>Kuupäev:</b> {dates_display}</p>
+                <p style="margin: 5px 0;">⏰ <b>Kellaaeg:</b> {time_str}</p>
+            </div>
+        """
+
+        if has_question:
+            content += f"""
+            <div style="background-color: #fff8e6; border-left: 4px solid #f39c12; padding: 12px 16px; border-radius: 6px; margin-top: 15px; color: #b9770e;">
+                <i>💡 Panime tähele, et lisasite broneeringule ka küsimuse või märkuse:<br>
+                <b>"{req.comment.strip()}"</b><br>
+                Edastasime selle meie administraatorile, kes vastab teile peagi!</i>
+            </div>
+            """
+
+        reply_body = build_html_email(
+            title="Broneering kinnitatud! 🏐",
+            greeting="Tere, hea rannaspordi sõber!",
+            content_html=content
+        )
+        send_email(clean_client_email, reply_subject, reply_body)
+
+    if has_question:
+        forward_to_admin(
+            clean_client_email,
+            req.comment.strip(),
+            note=f"Booking #{created_ids[0]} ({court_name}, {date_str} {time_str}) was automatically created via web. Please answer the client's additional question!"
+        )
+
+    return {
+        "created_count": len(created_ids),
+        "created_ids": created_ids,
+        "skipped_dates": skipped_dates
+    }
+
+
+@app.delete("/bookings/{booking_id}")
+def delete_booking(booking_id: int, db: Session = Depends(get_db)):
+    """Deletes a booking by ID."""
+    booking = db.query(models.Booking).filter(models.Booking.id == booking_id).first()
+    if not booking:
+        raise HTTPException(status_code=404, detail="Broneeringut ei leitud")
+    db.delete(booking)
+    db.commit()
+    return {"status": "deleted", "booking_id": booking_id}
