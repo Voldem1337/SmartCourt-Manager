@@ -1,4 +1,4 @@
-text,intent
+    text,intent
 "Soovin broneerida väljaku homme, 5. novembril kell 15:30.",booking
 Tahaksin rannavõrkpalli platsi kinni panna tänaseks.,booking
 Kas saaks ühe platsi hommikuks broneerida?,booking
@@ -53,7 +53,6 @@ Tahan broneerida kahte väljakut.,booking
 Vajame väljakut kaheks tunniks.,booking
 Sooviks mängida rannavõrkpalli reedel kell 18.,booking
 Broneeriksin meeleldi rannatennise väljaku.,booking
-Kas on võimalik tänaseks aega broneerida?,booking
 "Palun andke teada, kas see aeg on vaba ja kuidas toimub tasumine.",admin
 Kas te annate palle rendile?,admin
 Kus te täpselt asute?,admin
@@ -85,3 +84,27 @@ Jou,ignore
 Hei,ignore
 Ahoi,ignore
 Parimat,ignore
+"Kahjuks me ei saanud rahvast kokku, palun tühistage broneering.",cancel
+"Me ei saanud täna gruppi kokku ja mäng jääb ära.",cancel
+"Kahjuks ei saa ma kolmapäeval tulla, soovin aja tühistada.",cancel
+"Meil jäid mängijad haigeks, me kahjuks ei tule täna.",cancel
+"Vabastame oma tänase väljaku, kuna ei saanud tiimi kokku.",cancel
+"Kas saaks homse mängu ära jätta, rahvast ei tulnud kokku?",cancel
+"Kas kolmapäeval õhtul on veel vabu aegu?",admin
+"Mis kell on teil neljapäeval vabad väljakud?",admin
+"Tere, soovin broneerida väljaku.",booking
+"Kas on võimalik broneerida väljak homseks?",booking
+"Kas täna õhtuks on võimalik platsi broneerida?",booking
+"Kas oleks võimalik reedeks aeg broneerida?",booking
+"Soovin broneerida aja, kas see on võimalik?",booking
+"Tere hommikust!",ignore
+"Tere päevast!",ignore
+"Tervist!",ignore
+"Suur tänu ja ette tänades!",ignore
+"Tänan teid väga!",ignore
+"Aitäh ja ette tänades",ignore
+"Jään ootama teie tagasisidet.",ignore
+"Ootan teie vastust ja tagasisidet.",ignore
+"Kõike head ja lugupidamisega",ignore
+"Parimate soovidega ja ilusat päeva!",ignore
+"Ilusat päeva teile!",ignore
