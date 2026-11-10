@@ -1,8 +1,11 @@
 import datetime
 import imaplib
 import email
+import smtplib
 from email.header import decode_header
 import os
+from email.message import EmailMessage
+
 from dotenv import load_dotenv
 import html
 import re
@@ -90,7 +93,7 @@ def fetch_unread_emails() -> list[dict]:
         print(f"Email received error:  {e}")
     return unread_emails
 
-def extract_date(text: str) -> datetime.date | None:
+def extract_date(text: str) -> date | None:
     today = datetime.now().date()
     text_lower = text.lower()
     if "ülehomme" in text_lower:
@@ -160,6 +163,84 @@ def resolve_booking_year(day: int, month: int, max_horizon_days: int = 90) -> tu
 
     return  candidate, "ok"
 
+SMTP_SERVER = "smtp.gmail.com"
+SMTP_PORT = 465  # SSL port for Gmail
+ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", EMAIL_ACCOUNT)
+
+def send_email(to_email: str, subject: str, body: str) -> bool:
+    """Sends an automated email reply to the client via Gmail SMTP SSL."""
+    if not EMAIL_ACCOUNT or not EMAIL_PASSWORD:
+        print("SMTP Error: EMAIL_ACCOUNT or EMAIL_PASSWORD is missing in .env")
+        return False
+
+    try:
+        msg = EmailMessage()
+        msg["Subject"] = subject
+        msg["From"] = f"SmartCourt Booking <{EMAIL_ACCOUNT}>"
+        msg["To"] = to_email
+        msg.set_content(body, subtype='html') # Automatically handles UTF-8 (õ, ä, ö, ü)
+
+        with smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT) as server:
+            server.login(EMAIL_ACCOUNT, EMAIL_PASSWORD)
+            server.send_message(msg)
+
+        print(f"[SMTP SUCCESS] Reply sent to {to_email} | Subject: {subject}")
+        return True
+    except Exception as e:
+        print(f"[SMTP ERROR] Failed to send email to {to_email}: {e}")
+        return False
+
+
+def forward_to_admin(client_email: str, original_text: str, note: str) -> bool:
+    """Forwards complex inquiries or manual cancellation requests to the administrator using an HTML template."""
+    subject = f"🔔 [SmartCourt Admin] Tegevus vajalik: {client_email}"
+    if "RESCHEDULE" in note or "cancel" in note.lower():
+        color = "#e74c3c"
+        icon = "🔄 Tühistamine / Muutmine"
+    elif "automatically created" in note:
+        color = "#f39c12"
+        icon = "❓ Lisaküsimus kinnitatud broneeringule"
+    elif "missing date/time" in note:
+        color = "#9b59b6"
+        icon = "⚠️ Puudulik broneering + Küsimus"
+    else:
+        color = "#3498db"
+        icon = "💬 Üldine küsimus / Päring"
+
+    html_body = f"""
+    <html>
+    <body style="font-family: 'Segoe UI', Arial, sans-serif; color: #333; line-height: 1.6; background-color: #f4f7f9; padding: 20px; margin: 0;">
+        <div style="max-width: 650px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; border-left: 6px solid {color}; box-shadow: 0 4px 15px rgba(0,0,0,0.05); padding: 25px;">
+
+            <h2 style="margin-top: 0; color: #2c3e50; font-size: 18px; border-bottom: 1px solid #edf2f7; padding-bottom: 12px; margin-bottom: 20px;">
+                {icon}
+            </h2>
+
+            <div style="margin-bottom: 20px;">
+                <strong style="color: #7f8c8d; font-size: 13px; text-transform: uppercase;">Süsteemi märkus:</strong><br>
+                <span style="font-size: 16px; color: {color}; font-weight: bold;">{note}</span>
+            </div>
+
+            <div style="margin-bottom: 25px;">
+                <strong style="color: #7f8c8d; font-size: 13px; text-transform: uppercase;">Kliendi e-post:</strong><br>
+                <a href="mailto:{client_email}" style="font-size: 16px; color: #2980b9; font-weight: bold; text-decoration: none;">{client_email}</a> 
+                <span style="font-size: 13px; color: #95a5a6; margin-left: 8px;">(Vajuta, et otse vastata)</span>
+            </div>
+
+            <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 18px;">
+                <strong style="color: #64748b; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Kliendi originaalkiri:</strong>
+                <!-- white-space: pre-wrap гарантирует, что переносы строк в письме клиента не склеятся -->
+                <div style="white-space: pre-wrap; font-family: inherit; font-size: 15px; color: #1e293b; margin-top: 8px;">{original_text}</div>
+            </div>
+
+            <div style="font-size: 11px; color: #cbd5e1; margin-top: 20px; text-align: right; border-top: 1px solid #f1f5f9; padding-top: 10px;">
+                Sõnum on genereeritud automaatselt SmartCourt AI poolt
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+    return send_email(ADMIN_EMAIL, subject, html_body)
 
 
 

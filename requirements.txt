@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+sqlalchemy
+pydantic
+python-dotenv
+pandas
+scikit-learn
+joblib
+estnltk
+apscheduler
+database
